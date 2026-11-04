@@ -626,6 +626,40 @@ describe('NgxHeadlessErrorState', () => {
 
       expect(screen.getByTestId('no-errors')).toBeTruthy();
     });
+
+    it('hides warnings while a blocking error is visible', async () => {
+      @Component({
+        selector: 'ngx-test-errors-override-warnings',
+        imports: [NgxHeadlessErrorState],
+
+        template: `
+          <div
+            ngxHeadlessErrorState
+            #errorState="errorState"
+            [errorsOverride]="mixed"
+            fieldName="password"
+          >
+            @if (errorState.errorsVisible()) {
+              <span data-testid="errors-visible">Errors</span>
+            }
+            @if (errorState.warningsVisible()) {
+              <span data-testid="warnings-visible">Warnings</span>
+            }
+          </div>
+        `,
+      })
+      class TestComponent {
+        readonly mixed: Signal<readonly ValidationError[]> = computed(() => [
+          { kind: 'required', message: 'Password is required' },
+          { kind: 'warn:weak', message: 'Password is weak' },
+        ]);
+      }
+
+      await render(TestComponent);
+
+      expect(screen.getByTestId('errors-visible')).toBeTruthy();
+      expect(screen.queryByTestId('warnings-visible')).toBeNull();
+    });
   });
 
   describe('connectFieldState() bridge', () => {

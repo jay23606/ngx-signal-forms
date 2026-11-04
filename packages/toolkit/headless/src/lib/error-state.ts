@@ -154,6 +154,10 @@ export interface ErrorStateResult {
   readonly shouldShowErrors: Signal<boolean>;
   /** Whether to show warnings */
   readonly shouldShowWarnings: Signal<boolean>;
+  /** Whether blocking errors are on screen: shown per strategy and present */
+  readonly errorsVisible: Signal<boolean>;
+  /** Whether warnings are on screen: shown, present, and no visible error */
+  readonly warningsVisible: Signal<boolean>;
   /** Raw blocking errors */
   readonly errors: Signal<readonly ValidationError[]>;
   /** Raw warning errors */
@@ -296,9 +300,15 @@ function createErrorStateInternal<TValue = unknown>(
     errorVisibility: () => showErrorsSignal() && core.hasErrors(),
   });
 
+  const errorsVisible = computed(() => showErrorsSignal() && core.hasErrors());
+
   return {
     shouldShowErrors: showErrorsSignal,
     shouldShowWarnings: showWarningsSignal,
+    errorsVisible,
+    warningsVisible: computed(
+      () => showWarningsSignal() && core.hasWarnings() && !errorsVisible(),
+    ),
     ...core,
     fieldName: resolvedFieldName,
   };
@@ -324,6 +334,10 @@ export interface ErrorStateSignals {
   readonly shouldShowErrors: Signal<boolean>;
   /** Whether to show warnings based on the current strategy */
   readonly shouldShowWarnings: Signal<boolean>;
+  /** Whether blocking errors are on screen (shown per strategy and present) */
+  readonly errorsVisible: Signal<boolean>;
+  /** Whether warnings are on screen (shown, present, and no visible error) */
+  readonly warningsVisible: Signal<boolean>;
   /** Raw blocking errors from the field */
   readonly errors: Signal<readonly ValidationError[]>;
   /** Raw warning errors from the field */
@@ -644,6 +658,25 @@ export class NgxHeadlessErrorState<
     if (!this.field() && this.#bridgedFieldState()?.() == null) return true;
     return this.#strategyBasedShowWarnings();
   });
+
+  /**
+   * Whether blocking errors are on screen. Unlike {@link shouldShowErrors},
+   * this is `false` when no error is present, so a template can render
+   * exactly what the styled component renders.
+   */
+  readonly errorsVisible = computed(
+    () => this.shouldShowErrors() && this.hasErrors(),
+  );
+
+  /**
+   * Whether warnings are on screen. Applies the ADR-0007 rule in every mode:
+   * a visible blocking error hides the warning, including in direct-errors
+   * mode, where {@link shouldShowWarnings} is `true` unconditionally.
+   */
+  readonly warningsVisible = computed(
+    () =>
+      this.shouldShowWarnings() && this.hasWarnings() && !this.errorsVisible(),
+  );
 
   /**
    * Resolved error messages using 3-tier priority.
